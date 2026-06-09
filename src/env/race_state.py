@@ -3,6 +3,7 @@ from dataclasses import dataclass
 @dataclass
 class RaceState:
     current_lap: int
+    lap_time: float
     lap_delta : float
 
     position : int

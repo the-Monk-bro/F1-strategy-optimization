@@ -1,54 +1,70 @@
 import gymnasium as gym
 import numpy as np
 
-from pit_model  import PitModel
-from tyre_model import TyreModel
+
 from race_state import RaceState
 from reward import RewardCalculator
-
+from race_backend import RaceBackend
+from race_session import RaceSession
 
 class F1StrategyEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
 
-    def __init__(self, track , year, max_laps =70):
+    def __init__(self, track , year, max_laps =70, name='VER'):
         super().__init__()
 
         self.track =track
         self.year = year
         self.max_laps = max_laps
 
-        self.race_df = None
+        self.name = name
+
+        self.safety_car_times = {}
+
 
         self.reward_calc = RewardCalculator()
-        self.tyre_model = TyreModel()
-        self.pit_model = PitModel()
+    
+        self.race_backend = RaceBackend()
+        self.race_session = RaceSession()
+    
 
 
         self.action_space = gym.spaces.Discrete(4)
         self.observation_space = gym.spaces.Box(
             low= 0,
             high=1,
-            shape= (13,),
+            shape= (12,),
             dtype= np.float32
         )
 
     def reset(self, seed=None , options = None):
         super().reset(seed= seed)
+        
+        self.race_session.step(0, agent_time= None)
+
+        initial_tyre_compound = 1
+
+        initial_state = self.race_session.get_agent_state( agent_name= self.name)
+
+        gap_ahead = initial_state['gap_ahead']
+
+        lap_time, lap_delta = self.race_backend.simulated_lap_time(self.track, 1, initial_tyre_compound, 0, self.max_laps, False, gap_ahead, self.safety_car_times[1])
 
         self.state = RaceState(
             current_lap = 1,
-            lap_delta =0,
+            lap_time = lap_time,
+            lap_delta = lap_delta,
+        
+            position = initial_state["current_position"],
 
-            position = 10,
-
-            tyre_compound = 1,
+            tyre_compound = initial_tyre_compound,
             tyre_age=  0,
             
-            gap_leader = 20,
-            gap_ahead = 2,
-            gap_behind= 1,
+            gap_leader = initial_state["gap_leader"],
+            gap_ahead =  initial_state["gap_ahead"],
+            gap_behind=  initial_state["gap_behind"],
 
-            safety_car = False
+            safety_car = self.safety_car_times[1]
         )
         return self._get_obs() , {}
 
@@ -84,48 +100,54 @@ class F1StrategyEnv(gym.Env):
 
         ], dtype=np.float32)
 
-    def _apply_action(self, action):
-        pitted = False
-        pit_loss = 0
+        return obs
 
-        if action !=0 :
-            pitted = True
-            self.state.tyre_compound = action -1
-            self.state.tyre_age = 0
-
-            pit_loss = self.pit_model.get_loss(self.track, self.state.safety_car)
-
-            self.state.gap_leader += pit_loss
-        
-        return pitted, pit_loss
     
     def step (self, action):
+        pitted = False
 
-        prev_position =  self.state.position
-
-        pitted, pit_loss= self._apply_action(action)
-
+        if action !=0:
+            pitted = True
+            self.state.tyre_compound = action -1
+            self.state.tyre_age = -1
+        
         self.state.current_lap += 1
-        self.state.tyre_age += 1 
+        self.state.tyre_age += 1
+        self.state.safety_car = self.safety_car_times[self.state.current_lap]
 
-        degradation = self.tyre_model.degradation(self.state.tyre_compound, self.state.tyre_age)
+        self.race_session.step(self.state.current_lap, agent_time = self.state.lap_time)
+        state_now = self.race_session.get_agent_state(agent_name= self.name)
 
-        self.state.lap_delta = degradation
+        self.state.gap_leader = state_now['gap_leader']
+        self.state.gap_ahead = state_now['gap_ahead']
+        self.state.gap_behind = state_now['gap_behind']
+        
+        lap_time, lap_delta = self.race_backend.simulated_lap_time(
+            self.track,
+            self.state.current_lap,
+            self.state.tyre_compound,
+            self.state.tyre_age,
+            self.max_laps,
+            pitted,
+            self.state.gap_ahead,
+            self.state.safety_car
+            )
+        
+        self.state.lap_time = lap_time
+        self.state.lap_delta = lap_delta
 
-        if degradation>2:
-            self.state.position += 1
+        reward = self.reward_calc.compute()
 
-        self.state.position = min (20, max(1,self.state.position))
+        terminated =False
+        if self.state.current_lap >= self.max_laps  : terminated = True
 
-        reward = self.reward_calc.compute(prev_position , self.state.position, pit_loss, pitted, self.state.safety_car)
+        truncated = False
 
-        terminated = self.state.current_lap > self.max_laps
+        return self._get_obs(), reward, terminated, truncated, {}
 
-        if terminated:
-            reward += (21-self.state.position)*5
+      
+        
 
-        return (self._get_obs(), reward, terminated, False, {})
-    
     def render(self):
         print(f"""
 Lap: {self.state.current_lap}
@@ -150,9 +172,9 @@ while not done:
 
     action = env.action_space.sample()
 
-    obs, reward, done, _, _ = env.step(
-        action
-    )
+    obs, reward, done, _, _ = env.step(action)
+
+env.render()
 
 
 
