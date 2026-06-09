@@ -6,7 +6,8 @@ class RaceState:
     lap_time: float
     lap_delta : float
 
-    position : int
+    start_position : int
+    end_position: int
 
     tyre_compound : int
     tyre_age: int

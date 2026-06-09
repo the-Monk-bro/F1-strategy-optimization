@@ -9,10 +9,12 @@ class RaceBackend:
     def __init__(self, race_df):
         # Store the dataframe to extract real historical data
         self.race_data = race_df 
+
+        self.fastest_lap = float('inf')
         
         # Calculate base metrics dynamically from FastF1 data
         # Assuming race_df has columns like 'LapTime', 'Compound', etc.
-        self.fastest_lap = self.race_data['LapTime'].min().total_seconds()
+      
         
         # Base track time could be the median time of the top 10% fastest laps
         self.base_track_time = self.race_data['LapTime'].quantile(0.10).total_seconds()
@@ -30,10 +32,12 @@ class RaceBackend:
     def _calculate_real_tyre_offsets(self):
         # Logic to find the median lap time difference between compounds in race_df
         # This ensures compliance with using strictly real FastF1 data
-        pass
+        return {}
+    
+    
         
     def simulated_lap_time(self, track, current_lap, tyre_compound,tyre_age, max_laps, pitted, gap_ahead, safety_car):
-        base_time = self.base_track_time + self.offset.get(tyre_compound, 0)
+        base_time = self.base_track_time + self.offset.get[tyre_compound]
         
         # Renamed for clarity
         fuel_time_penalty = 0.035 * 100 * (1 - (current_lap / max_laps))
@@ -50,6 +54,12 @@ class RaceBackend:
         if safety_car:
             lap_time = lap_time * self.sc_multiplier
 
-        lap_delta = lap_time - self.fastest_lap
+        self.fastest_lap = min(self.fastest_lap, lap_time)
+        lap_delta= lap_time - self.fastest_lap
 
-        return lap_time, lap_delta
+
+        return (lap_time,lap_delta)
+    
+
+
+  

@@ -1,3 +1,4 @@
+import lap_times
 class Driver:
     def __init__(self, name):
         self.name = name
@@ -12,26 +13,24 @@ class Driver:
 class RaceSession:
     def __init__(self):
 
-        self.lap_times_dict = {'VER':1, 'RUS':2 }
+        self.lap_times_dict = lap_times.get_lap_times()
 
-        starting_grid_dict = {}
+        starting_grid_list = ['VER','RUS', 'MAK', 'ASM', 'SUF', 'RIT' ]
         grid_stagger_time = 0.15
+        self.drivers = []
 
-        for name, grid_pos in starting_grid_dict.items():
+        for grid_pos, name in enumerate(starting_grid_list):
             driver = Driver(name)
             
             # Apply the grid stagger so the initial sort works perfectly
-            driver.total_race_time = (grid_pos - 1) * grid_stagger_time
+            driver.total_race_time = grid_pos * grid_stagger_time
             self.drivers.append(driver)
         
       
 
-    def step(self, lap_num , agent_time= None ):
-        """
-        lap_times_dict: A dictionary mapping driver names to their lap time for this step.
-        Example: {'VER': 82.5, 'HAM': 82.8, 'LEC': 83.1}
-        """
-        
+    def step(self, lap_num , agent_time , agent_name):
+        self.lap_times_dict[lap_num][agent_name]= agent_time
+
         # 1. Update Total Race Time
         for driver in self.drivers:
             driver.total_race_time += self.lap_times_dict[lap_num][driver.name]
