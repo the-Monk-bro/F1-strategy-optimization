@@ -44,7 +44,7 @@ class Lap:
 
     pit_window: bool = False
 
-    total_laps: int
+    total_laps: int = 78
 
     @property
     def laps_remaining(self) -> int:
