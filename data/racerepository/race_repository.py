@@ -5,7 +5,7 @@ from data.models.race import Race
 from data.models.lap import Lap
 from data.sources.fastf1_source import FastF1DataSource
 from data.validators.race_validator import RaceValidator, ValidationResult
-from data.processors.gap_processor import GapProccessor
+from data.processors.gap_processor import GapProcessor
 from data.processors.pit_window_processor import PitWindowProcessor
 from data.statebuilder.state_builder import StateBuilder
 from data.config import CACHE_DIR
@@ -17,13 +17,13 @@ class RaceRepository:
                  cache_dir: str = CACHE_DIR,
                  source: Optional[FastF1DataSource]= None,
                  validator: Optional[RaceValidator] = None,
-                 gap_proc: Optional[GapProccessor]= None,
+                 gap_proc: Optional[GapProcessor]= None,
                  pit_proc: Optional[PitWindowProcessor]= None,
                  builder: Optional[StateBuilder]= None,
     ):
         self._source = source or FastF1DataSource(cache_dir)
         self._validator = validator or RaceValidator()
-        self._gap_proc = gap_proc or GapProccessor()
+        self._gap_proc = gap_proc or GapProcessor()
         self._pit_proc = pit_proc or PitWindowProcessor()
         self._builder = builder or StateBuilder()
 
@@ -39,10 +39,10 @@ class RaceRepository:
         key = f"{track_name}_{year}"
 
         if not force_reload  and key in self._cache:
-            logger.debug(f"Memore cache HIT; {key}")
+            logger.debug(f"Memory cache HIT; {key}")
             return self._cache[key]
         
-        logger.info(f"Loading{year} {track_name} (full pipeline)...")
+        logger.info(f"Loading {year} {track_name} (full pipeline)...")
 
         race = self._source.load_race(track_name, year)
 
@@ -71,7 +71,7 @@ class RaceRepository:
     ) -> List[List[float]]:
         
         race = self.get_race(track_name, year)
-        self._check_drivere(race, driver)
+        self._check_driver(race, driver)
         return self._builder.build_all(race, driver)
     
     def get_laps(
@@ -95,10 +95,10 @@ class RaceRepository:
                 logger.error(f"[{i}/{total}] {year} {track} FAILED: {e}")
 
     def cache_summary(self) -> Dict[str, int]:
-        return(
+        return{
             key: sum(len(laps) for laps in race.laps_by_driver.values())
-            for key, race in self._cache.items
-        ) 
+            for key, race in self._cache.items()
+        }
     def clear_cache(self) -> None:
         count = len(self._cache)
         self._cache.clear()
