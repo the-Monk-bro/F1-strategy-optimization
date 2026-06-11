@@ -16,15 +16,15 @@ class StateBuilder:
         )
         laps_remaining = self._clamp(lap.laps_remaining / total_laps)
         position = self._clamp(lap.position / NORMALIZATION["MAX_POSITION"])
-        compound_val = lap.compound.value if lap.compound.value >= 0 else 1
+        compound_val = lap.compound_type.value if lap.compound_type.value >= 0 else 1
         tyre_compound = self._clamp(compound_val / NORMALIZATION["MAX_COMPOUND"])
 
         tyre_age = self._clamp(lap.tyre_age/ NORMALIZATION["MAX_TYRE_AGE"])
         gap_to_leader = self._clamp(
             lap.gap_to_leader_s / NORMALIZATION["MAX_GAP_TO_LEADER_S"]
         )
-        gap_ahead = self._clamp(lap.gap_ahead_s / NORMALIZATION["MAX_GAP_CLOSE_ s"])
-        gap_behind= self._clamp(lap.gap_behind_s / NORMALIZATION["MAX_GAP_CLOSE_ s"])
+        gap_ahead = self._clamp(lap.gap_ahead_s / NORMALIZATION["MAX_GAP_CLOSE_S"])
+        gap_behind= self._clamp(lap.gap_behind_s / NORMALIZATION["MAX_GAP_CLOSE_S"])
         safety_car = 1.0 if lap.safety_car_flag else 0.0
         pit_window = 1.0 if lap.pit_window else 0.0
 
@@ -33,6 +33,7 @@ class StateBuilder:
             round(lap_delta, 4),
             round(laps_remaining, 4),
             round(position, 4),
+            round(tyre_compound, 4),
             round(tyre_age, 4),
             round(gap_to_leader, 4),
             round(gap_ahead, 4),
