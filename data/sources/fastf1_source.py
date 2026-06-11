@@ -1,17 +1,16 @@
 import os
 import logging 
-from typing import Dict, List, Optional 
-from datetime import datetime
+from typing import Dict, List
 import pandas as pd
 
 try:
     import fastf1
     FASTF1_AVAILABLE = True
-except ImportErrośr:
+except ImportError:
     FASTF1_AVAILABLE = False
 
 from data.models.lap import Lap, CompoundType, TrackStatus
-from data.models.race import Race, TrackInfo, TRACK_CONFIG
+from data.models.race import Race, TrackInfo, TRACK_CONFIGS
 from data.config import CACHE_DIR, VALIDATION
 
 logger = logging.getLogger(__name__)
@@ -57,17 +56,17 @@ class FastF1DataSource:
  
  
     def load_race(self, track_name: str, year: int) -> Race:
-        if track_name not in TRACK_CONFIG:
+        if track_name not in TRACK_CONFIGS:
             raise ValueError(
                 f"Unknown track: '{track_name}'\n"
-                f"Available: {list(TRACK_CONFIG.keys())}"
+                f"Available: {list(TRACK_CONFIGS.keys())}"
             )
         if not (2018 <= year <= 2023):
             raise ValueError(
                 f"Year {year} out of range. Supported: 2018-2023."
             )
  
-        track_info = TRACK_CONFIG[track_name]
+        track_info = TRACK_CONFIGS[track_name]
         logger.info(f"Loading {year} {track_name}...")
 
         raw_session = self._fetch_session(track_name, year)
@@ -110,7 +109,7 @@ class FastF1DataSource:
         result: Dict[str, List[Lap]] = {}
  
         for driver in drivers:
-            # Get only THIS driver's rows, sorted by lap number
+            
             driver_df = (
                 all_laps_df[all_laps_df["Driver"] == driver]
                 .copy()
@@ -163,7 +162,7 @@ class FastF1DataSource:
         pit_time_s = None
         if pitted and pd.notna(pit_out) and pd.notna(pit_in):
             raw = (pit_out - pit_in).total_seconds()
-            # Sanity check — real pit stops are 2-60 seconds
+           
             if VALIDATION["MIN_PIT_TIME_S"] <= raw <= VALIDATION["MAX_PIT_TIME_S"]:
                 pit_time_s = raw
  
@@ -175,17 +174,17 @@ class FastF1DataSource:
             lap_number      = int(row.get("LapNumber", 1)),
             total_laps      = track_info.total_laps,
             lap_time_s      = lap_time_s,
-            compound        = compound,
+            compound_type   = compound,
             tyre_age        = int(row.get("TyreLife", 0) or 0),
             position        = position,
             track_status    = track_status,
             pitted          = pitted,
             pit_time_s      = pit_time_s,
-            # Gap fields set to defaults now — filled by GapProcessor later
+           
             gap_to_leader_s = 0.0,
             gap_ahead_s     = 999.0,
             gap_behind_s    = 999.0,
-            # Computed fields — filled by processors later
+            
             lap_delta_s     = 0.0,
             pit_window      = False,
         )
