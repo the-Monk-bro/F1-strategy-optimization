@@ -45,6 +45,9 @@ class RaceValidator:
         e,w = self._check_positions(race)
         errors.extend(e); warnings.extend(w)
 
+        e,w = self._check_lap_metadata_sync(race)
+        errors.extend(e); warnings.extend(w)
+
         result = ValidationResult(
             is_valid = len(errors) == 0,
             errors = errors,
@@ -67,10 +70,14 @@ class RaceValidator:
             )
             return False
         for i,val in enumerate(state):
-            if math.isnan(val):
+            if not isinstance(val,(int,float)):
+                logger.error(f"State {i} is not numeric , val:{val} , lap:{lap}")
+                return False
+            value = float(val)
+            if math.isnan(value):
                 logger.error(f"State[{i}] is NaN for lap: {lap}")
                 return False
-            if not (0.0 <= val <= 1.0):
+            if not (0.0 <= value <= 1.0):
                 logger.error(f"State[{i}] = {val: .4f} is outside [0,1]. Lap: {lap}")
                 return False
             
@@ -88,11 +95,11 @@ class RaceValidator:
             )
         return errors, warnings
     
-    def _check__lap_counts(self, race: Race) -> Tuple[List[str], List[str]]:
+    def _check_lap_counts(self, race: Race) -> Tuple[List[str], List[str]]:
         errors, warnings = [], []
         for driver in race.drivers:
             count = len(race.get_valid_laps(driver))
-            if count < VALIDATION["MIN_LAPS_PER_DRRIVER"]:
+            if count < VALIDATION["MIN_LAPS_PER_DRIVER"]:
                 warnings.append(
                     f"{driver} has only {count} valid laps "
                     f"(minimum: {VALIDATION['MIN_LAPS_PER_DRIVER']}). "
@@ -122,7 +129,7 @@ class RaceValidator:
                     )
         return errors, warnings
     def _check_tyre_ages(
-            sef, race: Race
+            self, race: Race
     ) -> Tuple[List[str],List[str]]:
         errors, warnings = [],[]
         for driver in race.drivers:
@@ -132,16 +139,16 @@ class RaceValidator:
                         f"{driver} Lap {lap.lap_number}: "
                         f"negative tyre age{lap.tyre_age} - data corruption!"
                     )
-                    if lap.tyre_age > 60:
-                        warnings.append(
-                            f"{driver} Lap {lap.lap_number}: "
-                            f"very high tyre age {lap.tyre_age} - check data"
-                        )
+                if lap.tyre_age > 60:
+                    warnings.append(
+                        f"{driver} Lap {lap.lap_number}: "
+                        f"very high tyre age {lap.tyre_age} - check data"
+                    )
         return errors, warnings
     
     def _check_positions(
             self, race: Race
-    ) -> Tuple[List{str}, List[str]]:
+    ) -> Tuple[List[str], List[str]]:
         errors, warnings = [], []
         for driver in race.drivers:
             for lap in race.get_driver_laps(driver):
@@ -150,4 +157,19 @@ class RaceValidator:
                         f"{driver} Lap {lap.lap_number}: "
                         f"position {lap.position} outside 1-20"
                     )
+        return errors, warnings
+    
+    def _check_lap_metadata_sync(self, race: Race) -> Tuple[List[str], List[str]]:
+        errors, warnings = [],[]
+        for driver in race.drivers:
+            for lap in race.get_driver_laps(driver):
+                if lap.total_laps != race.total_laps:
+                    errors.append(
+                    f"{driver} Lap {lap.lap_number}: "
+                    f"lap.total_laps={lap.total_laps}, "
+                    f"but race.total_laps={race.total_laps}. "
+                    f"Call race.sync_lap_metadata()."
+                )
+
+
         return errors, warnings
