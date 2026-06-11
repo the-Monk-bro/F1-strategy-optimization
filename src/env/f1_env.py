@@ -10,7 +10,7 @@ from race_session import RaceSession
 class F1StrategyEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
 
-    def __init__(self, track = 'monza' , year= 2022, max_laps =70, name='MAK', total_players= 6):
+    def __init__(self, track = 'monza' , year= 2022, max_laps =70, name='MAK', total_players= 20):
         super().__init__()
 
         self.track =track
@@ -120,6 +120,8 @@ class F1StrategyEnv(gym.Env):
         self.race_session.step(self.state.current_lap, self.state.lap_time,self.name)
         state_now = self.race_session.get_agent_state(agent_name= self.name)
 
+        prev_gap_leader = self.state.gap_leader
+
         self.state.gap_leader = state_now['gap_leader']
         self.state.gap_ahead = state_now['gap_ahead']
         self.state.gap_behind = state_now['gap_behind']
@@ -140,14 +142,14 @@ class F1StrategyEnv(gym.Env):
         self.state.lap_time = lap_time
         self.state.lap_delta = lap_delta
 
-        reward = self.reward_calc.compute()
-
         terminated =False
         if self.state.current_lap >= self.max_laps  : terminated = True
 
-        truncated = False
+        reward = self.reward_calc.compute(self.state.lap_time, self.race_backend.base_track_time[self.track] ,self.state.start_position, self.state.end_position, self.state.gap_leader, prev_gap_leader )
 
-        return self._get_obs(), reward, terminated, truncated, {}
+        
+
+        return self._get_obs(), reward, terminated, False, {}
 
       
         
