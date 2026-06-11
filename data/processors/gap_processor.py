@@ -1,8 +1,8 @@
 import logging 
-from typing import Dict, List, Optional
+from typing import Dict
 
 from data.models.race import Race
-from data.models.lap  import Lap
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class GapProcessor:
             for lap in laps
         }
         
-        leader_time: Dict[int, float] = {}
+        leader_time_by_lap: Dict[int, float] = {}
         for n in all_lap_nums:
             times_this_lap = {
                 d: cum[d][n]
@@ -38,8 +38,18 @@ class GapProcessor:
                 if n in cum[d]
             }
             if times_this_lap:
-                leader_time[n] = min(times_this_lap.values())
-    
+                leader_time_by_lap[n] = min(times_this_lap.values())
+        for driver in race.drivers:
+            for lap in race.get_driver_laps(driver):
+                lap_number = lap.lap_number
+
+                driver_time = cum[driver].get(lap_number)
+                leader_time = leader_time_by_lap.get(lap_number)
+
+                if driver_time is None or leader_time is None:
+                    continue 
+                lap.gap_to_leader_s = round(max(0,driver_time - leader_time), 3,)
+
 
     def _compute_position_gaps(self, race: Race) -> None:
         all_lap_nums = {
@@ -84,7 +94,7 @@ class GapProcessor:
     def _compute_lap_delta(self, race: Race) -> None:
         for driver in race.drivers:
             best = race.get_best_lap_time(driver)
-            if best in None: 
+            if best is None: 
                 continue
             
             for lap in race.get_driver_laps(driver):
