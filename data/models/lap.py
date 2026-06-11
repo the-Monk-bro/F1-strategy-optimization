@@ -12,7 +12,7 @@ class CompoundType(Enum):
 class TrackStatus(Enum):
     GREEN = 1
     YELLOW = 2
-    SAFETY_CAR = 3
+    SAFETY_CAR = 4
     RED_FLAG = 5
     VIRTUAL_SC = 6
     UNKNOWN = 0
@@ -67,7 +67,7 @@ class Lap:
         win = " WIN"  if self.pit_window else ""
         return (
             f"Lap({self.lap_number} {self.driver} | "
-            f"{self.compound.name}/{self.tyre_age}L | "
+            f"{self.compound_type.name}/{self.tyre_age}L | "
             f"{t} | P{self.position} | "
             f"delta={self.lap_delta_s:.2f}s | "
             f"gap={self.gap_to_leader_s:.1f}s | "

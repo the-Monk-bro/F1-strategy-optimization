@@ -10,7 +10,7 @@ class TrackInfo:
     pit_window_start: int = 15      
     pit_window_end: int = 45       
  
-TRACK_CONFIG: Dict[str, TrackInfo] = {
+TRACK_CONFIGS: Dict[str, TrackInfo] = {
     "Monaco": TrackInfo(
         name = "Monaco",
         total_laps = 78,
@@ -36,6 +36,9 @@ TRACK_CONFIG: Dict[str, TrackInfo] = {
   
 @dataclass
 class Race:
+    def __post_init__(self) -> None:
+        self.sync_lap_metadata()
+
     track: TrackInfo
     year: int
     laps_by_driver:  Dict[str, List[Lap]] = field(default_factory=dict)
@@ -47,6 +50,12 @@ class Race:
     @property
     def total_laps(self) -> int:
         return self.track.total_laps
+    
+    def sync_lap_metadata(self)-> None:
+        for laps in self.laps_by_driver.values():
+            for lap in laps:
+                lap.total_laps = self.track.total_laps
+
     def get_driver_laps(self, driver: str) -> List[Lap]:
         return self.laps_by_driver.get(driver, [])
  
