@@ -72,7 +72,23 @@ class RaceRepository:
         
         race = self.get_race(track_name, year)
         self._check_driver(race, driver)
-        return self._builder.build_all(race, driver)
+        
+        laps = race.get_valid_laps(driver)
+        states = self._builder.build_all(race, driver)
+
+        if len(states) != len(laps):
+            raise ValueError(
+                f"State count mismatch for {driver} in {year} {track_name}"
+                f"{len(states)} states but {len(laps)} valid laps."
+            )
+        for lap, state in zip(laps, states):
+            if not self._validator.validate_state_vector(state, lap):
+                raise ValueError(
+                    f"Invalid state vector generated for"
+                    f"{driver} lap {lap.lap_number} in {year} {track_name}: "
+                    f"{state}"
+                )
+        return state
     
     def get_laps(
             self,
