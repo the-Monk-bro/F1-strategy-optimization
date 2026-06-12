@@ -11,7 +11,7 @@ except ImportError:
 
 from data.models.lap import Lap, CompoundType, TrackStatus
 from data.models.race import Race, TrackInfo, TRACK_CONFIGS
-from data.config import CACHE_DIR, VALIDATION
+from data.config import CACHE_DIR, VALIDATION, SUPPORTED_YEARS
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,9 @@ class FastF1DataSource:
                 f"Unknown track: '{track_name}'\n"
                 f"Available: {list(TRACK_CONFIGS.keys())}"
             )
-        if not (2018 <= year <= 2023):
+        if year not in SUPPORTED_YEARS:
             raise ValueError(
-                f"Year {year} out of range. Supported: 2018-2023."
+                f"Year {year} out of range. Supported: {SUPPORTED_YEARS}."
             )
  
         track_info = TRACK_CONFIGS[track_name]
@@ -153,8 +153,7 @@ class FastF1DataSource:
         cpd = str(row.get("Compound", "")).strip().upper()
         compound = COMPOUND_MAP.get(cpd, CompoundType.UNKNOWN)
  
-        status = str(row.get("TrackStatus", "1")).strip()
-        track_status = STATUS_MAP.get(status, TrackStatus.UNKNOWN)
+        track_status = self._parse_track_status(row.get("TrackStatus",1))
  
         pit_in  = row.get("PitInTime")
         pit_out = row.get("PitOutTime")
@@ -198,6 +197,29 @@ class FastF1DataSource:
             return int(value)
         except(TypeError, ValueError):
             return default
-    
+        
+    @staticmethod
+    def _parse_track_status(raw_status)-> TrackStatus:
+        if pd.isna(raw_status):
+            return TrackStatus.UNKNOWN
+        
+        status = str(raw_status).strip()
+
+        if "5" in status:
+            return TrackStatus.RED_FLAG 
+        if "4" in status:
+            return TrackStatus.SAFETY_CAR
+        if "6" in status:
+            return TrackStatus.VIRTUAL_SC
+        if "2" in status:
+            return TrackStatus.YELLOW 
+        if "1" in status:
+            return TrackStatus.GREEN
+
+        return TrackStatus.UNKNOWN  
+   
+   
+   
+   
 
  

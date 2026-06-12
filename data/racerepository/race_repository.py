@@ -88,7 +88,7 @@ class RaceRepository:
                     f"{driver} lap {lap.lap_number} in {year} {track_name}: "
                     f"{state}"
                 )
-        return state
+        return states
     
     def get_laps(
             self,
