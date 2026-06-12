@@ -138,7 +138,8 @@ class FastF1DataSource:
                 lap_n = row.get("LapNumber", "?")
                 logger.warning(f"Skipping lap {lap_n} for {driver}: {e}")
         return laps
- 
+
+    
     def _row_to_lap(
         self,
         row: pd.Series,
@@ -165,18 +166,16 @@ class FastF1DataSource:
            
             if VALIDATION["MIN_PIT_TIME_S"] <= raw <= VALIDATION["MAX_PIT_TIME_S"]:
                 pit_time_s = raw
- 
-        raw_pos = row.get("Position")
-        position = int(raw_pos) if pd.notna(raw_pos) else 20
+
  
         return Lap(
             driver          = driver,
-            lap_number      = int(row.get("LapNumber", 1)),
+            lap_number      = self._safe_int(row.get("LapNumber"), default=1),
             total_laps      = track_info.total_laps,
             lap_time_s      = lap_time_s,
             compound_type   = compound,
-            tyre_age        = int(row.get("TyreLife", 0) or 0),
-            position        = position,
+            tyre_age        = self._safe_int(row.get("TyreLife"), default= 0),
+            position        =self._safe_int(row.get("Position"), default=20),
             track_status    = track_status,
             pitted          = pitted,
             pit_time_s      = pit_time_s,
@@ -188,4 +187,17 @@ class FastF1DataSource:
             lap_delta_s     = 0.0,
             pit_window      = False,
         )
+
+
+
+    @staticmethod    
+    def _safe_int( value, default: int = 0) -> int:
+        if pd.isna(value):
+            return default
+        try:
+            return int(value)
+        except(TypeError, ValueError):
+            return default
+    
+
  
