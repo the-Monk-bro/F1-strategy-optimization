@@ -20,11 +20,13 @@ class PitWindowProcessor:
     def _evaluate(
             self, lap,pit_loss_time_s:float, window_start: int, window_end: int,)->bool:
         tyre_old_enough = lap.tyre_age >= PIT_WINDOW["MIN_TYRE_AGE_TO_PIT"]
-        if lap.track_status.is_slow_zone:
-            if tyre_old_enough:
-                            return True
 
+        if not tyre_old_enough:
+            return False
         
+        if lap.track_status.is_slow_zone:
+            return True
+         
         in_window = window_start <= lap.lap_number <= window_end
         if not in_window:
             return False
