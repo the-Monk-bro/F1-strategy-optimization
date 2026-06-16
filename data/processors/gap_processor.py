@@ -22,7 +22,7 @@ class GapProcessor:
             for lap in sorted(race.get_driver_laps(driver), key= lambda x : x.lap_number):
                 if lap.lap_time_s is not None:
                     total += lap.lap_time_s
-                cum[driver][lap.lap_number] = total
+                    cum[driver][lap.lap_number] = total
         
         all_lap_nums = {
             lap.lap_number
