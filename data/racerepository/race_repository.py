@@ -8,6 +8,7 @@ from data.validators.race_validator import RaceValidator, ValidationResult
 from data.processors.gap_processor import GapProcessor
 from data.processors.pit_window_processor import PitWindowProcessor
 from data.statebuilder.state_builder import StateBuilder
+from data.exporters.simulation_data_builder import SimulationDataBuilder
 from data.config import CACHE_DIR
 
 logger = logging.getLogger(__name__)
@@ -20,12 +21,14 @@ class RaceRepository:
                  gap_proc: Optional[GapProcessor]= None,
                  pit_proc: Optional[PitWindowProcessor]= None,
                  builder: Optional[StateBuilder]= None,
+                 sim_builder: Optional[SimulationDataBuilder] = None,
     ):
         self._source = source or FastF1DataSource(cache_dir)
         self._validator = validator or RaceValidator()
         self._gap_proc = gap_proc or GapProcessor()
         self._pit_proc = pit_proc or PitWindowProcessor()
         self._builder = builder or StateBuilder()
+        self._sim_builder = sim_builder or SimulationDataBuilder()
 
         self._cache: Dict[str, Race] = {}
         logger.info("RaceRepository ready.")
@@ -127,3 +130,11 @@ class RaceRepository:
                 f"Driver '{driver}' not in {race.year} {race.track.name}. \n"
                 f"Available drivers: {race.drivers}"
             )
+    def get_simulation_data(
+        self,
+        track_name: str,
+        year: int,
+        force_reload: bool = False,
+    ) -> Dict:
+        race = self.get_race(track_name, year, force_reload=force_reload)
+        return self._sim_builder.build(race)

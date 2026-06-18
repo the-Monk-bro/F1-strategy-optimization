@@ -30,3 +30,8 @@ FUEL = {
     "BURN_PER_LAP_KG": 1.5,
     "TIME_GAIN_PER_KG_S": 0.03,
 }
+TYRE_LOSS = {
+    0: 0.15,  # soft
+    1: 0.08,  # medium
+    2: 0.05,  # hard
+}
