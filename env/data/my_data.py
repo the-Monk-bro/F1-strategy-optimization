@@ -2,6 +2,7 @@ import fastf1
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+import os
 
 
 class F1TrackDataLoader:
@@ -15,11 +16,19 @@ class F1TrackDataLoader:
     COMPOUND_MAP = {
         "SOFT": 0,
         "MEDIUM": 1,
-        "HARD": 2
+        "HARD": 2,
+        "INTERMEDIATE": 3,
+        "INTER": 3,
+        "I": 3,
+        "WET": 4,
+        "HEAVY_WET": 4,
+        "W": 4
     }
 
     def __init__(self):
-        fastf1.Cache.enable_cache("env/data/my_cache")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        cache_dir = os.path.join(current_dir, "my_cache")
+        fastf1.Cache.enable_cache(cache_dir)
 
     def get_race_data(self, track: str, year: int):
 
@@ -45,6 +54,9 @@ class F1TrackDataLoader:
 
             "safety_car":
                 self._get_safety_car_flags(session),
+
+            "track_wetness":
+                self._get_track_wetness(session),
 
             "lap_times":
                 self._get_lap_times(laps, starting_grid),
@@ -85,23 +97,43 @@ class F1TrackDataLoader:
 
         sc_flags = [False] * (max_laps + 1)
 
-        race_control = session.race_control_messages
-
-        if race_control is None:
-            return sc_flags
-
-        for _, msg in race_control.iterrows():
-
-            txt = str(msg["Message"]).upper()
-
-            if "SAFETY CAR DEPLOYED" in txt:
-
-                lap = int(msg["Lap"])
-
+        for lap_no, group in session.laps.groupby("LapNumber"):
+            statuses = group["TrackStatus"].unique()
+            # '4' is Safety Car, '6' is Virtual Safety Car
+            if any('4' in str(s) or '6' in str(s) for s in statuses):
+                lap = int(lap_no)
                 if lap <= max_laps:
                     sc_flags[lap] = True
 
         return sc_flags
+
+    # --------------------------------------------------
+    # TRACK WETNESS FLAGS
+    # --------------------------------------------------
+
+    def _get_track_wetness(self, session):
+        max_laps = int(session.laps["LapNumber"].max())
+        wetness = [0] * (max_laps + 1)
+        
+        for lap_no, group in session.laps.groupby("LapNumber"):
+            compounds = group["Compound"].dropna().tolist()
+            if not compounds:
+                continue
+            
+            num_wets = sum(1 for c in compounds if c in ["WET", "HEAVY_WET", "W"])
+            num_inters = sum(1 for c in compounds if c in ["INTERMEDIATE", "INTER", "I"])
+            num_total = len(compounds)
+            
+            lap = int(lap_no)
+            if lap <= max_laps:
+                if num_wets / num_total >= 0.3:
+                    wetness[lap] = 2  # WET
+                elif (num_inters + num_wets) / num_total >= 0.3:
+                    wetness[lap] = 1  # DAMP (Intermediate)
+                else:
+                    wetness[lap] = 0  # DRY
+                    
+        return wetness
 
     # --------------------------------------------------
     # LAP TIMES
@@ -167,9 +199,15 @@ class F1TrackDataLoader:
             elif compound == "MEDIUM":
                 base = {1:0.00, 2:0.02, 3:0.05, 4:0.09, 5:0.14, 6:0.20, 7:0.27, 8:0.35, 9:0.44, 10:0.54}
                 last_diff = 0.10
-            else: # HARD
+            elif compound == "HARD":
                 base = {1:0.00, 2:0.01, 3:0.03, 4:0.05, 5:0.08, 6:0.11, 7:0.15, 8:0.19, 9:0.24, 10:0.30}
                 last_diff = 0.06
+            elif compound == "INTERMEDIATE":
+                base = {1:0.00, 2:0.01, 3:0.03, 4:0.05, 5:0.08, 6:0.12, 7:0.17, 8:0.23, 9:0.30, 10:0.38}
+                last_diff = 0.08
+            else: # WET
+                base = {1:0.00, 2:0.01, 3:0.02, 4:0.04, 5:0.06, 6:0.09, 7:0.13, 8:0.18, 9:0.24, 10:0.31}
+                last_diff = 0.07
                 
             curve = {}
             for age in range(1, limit + 1):
@@ -180,9 +218,14 @@ class F1TrackDataLoader:
             return curve
 
         deg = {}
-        for compound in ["SOFT", "MEDIUM", "HARD"]:
+        for compound in ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]:
             compound_id = self.COMPOUND_MAP[compound]
-            subset = laps[laps["Compound"] == compound].copy()
+            if compound == "INTERMEDIATE":
+                subset = laps[laps["Compound"].isin(["INTERMEDIATE", "INTER", "I"])].copy()
+            elif compound == "WET":
+                subset = laps[laps["Compound"].isin(["WET", "HEAVY_WET", "W"])].copy()
+            else:
+                subset = laps[laps["Compound"] == compound].copy()
             
             # 1. Extract all clean laps
             d_clean = subset.dropna(subset=["LapTime", "TrackStatus", "IsAccurate", "TyreLife"])
@@ -333,8 +376,19 @@ class F1TrackDataLoader:
 
         base_times = {}
         
+        # We loop over unique compound IDs to avoid processing duplicate alias keys (like INTER, HEAVY_WET, W, etc.)
+        processed_compound_ids = set()
         for compound_name, compound_id in self.COMPOUND_MAP.items():
-            comp_laps = laps[laps["Compound"] == compound_name].copy()
+            if compound_id in processed_compound_ids:
+                continue
+            processed_compound_ids.add(compound_id)
+            
+            if compound_name in ["INTERMEDIATE", "INTER", "I"]:
+                comp_laps = laps[laps["Compound"].isin(["INTERMEDIATE", "INTER", "I"])].copy()
+            elif compound_name in ["WET", "HEAVY_WET", "W"]:
+                comp_laps = laps[laps["Compound"].isin(["WET", "HEAVY_WET", "W"])].copy()
+            else:
+                comp_laps = laps[laps["Compound"] == compound_name].copy()
             
             # Ensure LapTime, TrackStatus, TyreLife, IsAccurate are not NaN
             comp_laps = comp_laps.dropna(subset=["LapTime", "TrackStatus", "TyreLife", "IsAccurate"])
@@ -384,8 +438,48 @@ class F1TrackDataLoader:
                 base_times[compound_id] = float(np.mean(times[:k]))
                 continue
                 
-            # Fallback 4: Overall base time
-            base_times[compound_id] = overall_base
+            # Fallback 4: Overall base time (deferred to post-loop fallback logic)
+            pass
+
+        # Apply relative compound delta fallbacks if any compound is missing
+        soft_id = 0
+        medium_id = 1
+        hard_id = 2
+        intermediate_id = 3
+        wet_id = 4
+
+        # Dry compounds
+        if medium_id in base_times:
+            if soft_id not in base_times:
+                base_times[soft_id] = base_times[medium_id] - 1.0
+            if hard_id not in base_times:
+                base_times[hard_id] = base_times[medium_id] + 1.0
+        elif soft_id in base_times:
+            if medium_id not in base_times:
+                base_times[medium_id] = base_times[soft_id] + 1.0
+            if hard_id not in base_times:
+                base_times[hard_id] = base_times[soft_id] + 2.0
+        elif hard_id in base_times:
+            if medium_id not in base_times:
+                base_times[medium_id] = base_times[hard_id] - 1.0
+            if soft_id not in base_times:
+                base_times[soft_id] = base_times[hard_id] - 2.0
+
+        # Any remaining missing dry compounds get offset relative to overall_base
+        for cid in [soft_id, medium_id, hard_id]:
+            if cid not in base_times:
+                if cid == soft_id:
+                    base_times[cid] = overall_base - 0.5
+                elif cid == medium_id:
+                    base_times[cid] = overall_base
+                elif cid == hard_id:
+                    base_times[cid] = overall_base + 0.5
+                    
+        # Wet compounds fallbacks (typically slow down compared to dry average)
+        if intermediate_id not in base_times:
+            base_times[intermediate_id] = overall_base + 8.0
+        if wet_id not in base_times:
+            base_times[wet_id] = overall_base + 15.0
 
         return base_times
 

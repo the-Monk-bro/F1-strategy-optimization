@@ -1,6 +1,13 @@
 class RewardCalculator:
-    def compute(self, lap_delta, start_pos, end_pos , gap_leader, prev_gap_leader):
-        reward =  (start_pos-end_pos)*10 + (prev_gap_leader - gap_leader)  - (lap_delta)
+    def compute(self, lap_delta, start_pos, end_pos, gap_leader, prev_gap_leader, pitted=False, pit_loss=0.0):
+        # time delta compared to the leader (positive if closing the gap, negative if losing ground)
+        gap_delta = prev_gap_leader - gap_leader
         
+        # If the driver pitted, adjust the gap delta by the physical pit loss 
+        # so they aren't double-penalized for the pit stop duration
+        if pitted:
+            gap_delta += pit_loss
+            
+        reward = (start_pos - end_pos) * 10 + gap_delta - lap_delta
         return reward
        

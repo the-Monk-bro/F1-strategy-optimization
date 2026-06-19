@@ -5,4 +5,8 @@ class TyreModel:
 
 
     def degradation(self,compound, age):
-        return self.degradation_curves[compound][age]
+        curve = self.degradation_curves[compound]
+        max_age = max(curve.keys())
+        clipped_age = min(age, max_age)
+        clipped_age = max(1, clipped_age)
+        return curve[clipped_age]

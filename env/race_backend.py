@@ -25,6 +25,8 @@ class RaceBackend:
         pitted: bool,
         gap_ahead: float,
         safety_car: bool,
+        track_wetness: int = 0,
+        noise: float = 0.0,
     ) -> tuple[float, float]:
         
         base_time = self.base_track_time[tyre_compound]
@@ -36,6 +38,29 @@ class RaceBackend:
             tyre_compound,
             tyre_age
         )
+
+        # If Intermediate/Wet tyres are run on a dry track, their degradation penalty increases dramatically
+        if track_wetness == 0 and tyre_compound in [3, 4]:
+            tyre_degradation_penalty *= 4.0
+
+        # Determine weather mismatch penalties
+        # 0: DRY, 1: DAMP, 2: WET
+        weather_penalty = 0.0
+        if track_wetness == 0:  # Dry track
+            if tyre_compound == 3:  # Intermediate on dry
+                weather_penalty = 8.0
+            elif tyre_compound == 4:  # Wet on dry
+                weather_penalty = 15.0
+        elif track_wetness == 1:  # Damp track
+            if tyre_compound in [0, 1, 2]:  # Dry tyres on damp
+                weather_penalty = 15.0
+            elif tyre_compound == 4:  # Wet on damp
+                weather_penalty = 4.0
+        elif track_wetness == 2:  # Wet track
+            if tyre_compound in [0, 1, 2]:  # Dry tyres on wet
+                weather_penalty = 40.0
+            elif tyre_compound == 3:  # Intermediate on wet
+                weather_penalty = 5.0
 
         pit_loss = 0.0
         if pitted: pit_loss = self.pit_model.get_loss(safety_car)
@@ -53,6 +78,8 @@ class RaceBackend:
             + fuel_time_penalty
             + pit_loss
             + traffic_loss
+            + weather_penalty
+            + noise
         )
 
         if safety_car:

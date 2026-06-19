@@ -15,7 +15,7 @@ class RaceSession:
         self.lap_times_dict = data["lap_times"]
 
         starting_grid_list = data["starting_grid"]
-        grid_stagger_time = 0.15
+        grid_stagger_time = 1e-5
         self.drivers = []
 
         for grid_pos, name in enumerate(starting_grid_list):
