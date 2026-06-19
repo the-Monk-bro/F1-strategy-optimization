@@ -1,0 +1,98 @@
+Modify ONLY the tyre degradation calculation logic in the current F1TrackDataLoader implementation.
+
+Goal:
+Replace the current single average degradation rate per compound with a degradation curve indexed by tyre age.
+
+Current behavior:
+The code computes:
+
+deg_rate = mean(consecutive_lap_time_differences)
+
+and returns:
+
+{
+compound_id: degradation_rate
+}
+
+This assumes linear degradation.
+
+New behavior:
+For each compound (SOFT, MEDIUM, HARD):
+
+1. Extract all clean laps:
+
+   * TrackStatus == "1"
+   * IsAccurate == True
+   * LapTime not null
+   * TyreLife not null
+
+2. Group by:
+
+   * Driver
+   * Stint
+
+3. For each tyre age N:
+
+   * Compute the average lap time increase relative to tyre age 1 within the same stint.
+   * Example:
+
+     TyreLife:
+     1 -> 80.0
+     2 -> 80.1
+     3 -> 80.3
+     4 -> 80.6
+
+     degradation curve becomes:
+
+     {
+     1: 0.0,
+     2: 0.1,
+     3: 0.3,
+     4: 0.6
+     }
+
+4. Aggregate across all drivers and stints by averaging values for the same tyre age.
+
+5. Produce a degradation curve instead of a single scalar.
+
+Desired output format:
+
+{
+0: {1:0.0, 2:0.05, 3:0.12, ...},   # Soft
+1: {1:0.0, 2:0.03, 3:0.08, ...},   # Medium
+2: {1:0.0, 2:0.02, 3:0.05, ...}    # Hard
+}
+
+where keys 0/1/2 remain mapped to Soft/Medium/Hard exactly as before.
+
+Requirements:
+
+* Handle missing tyre ages gracefully.
+* Ignore outlier lap times.
+* Use robust averaging (median or trimmed mean preferred).
+* If a tyre age has insufficient samples, interpolate from nearby ages.
+* If an entire compound lacks enough data, fall back to a reasonable default degradation curve.
+
+Default fallback curves:
+
+Soft:
+{
+1:0.00, 2:0.03, 3:0.07, 4:0.12, 5:0.18,
+6:0.25, 7:0.34, 8:0.45, 9:0.58, 10:0.73
+}
+
+Medium:
+{
+1:0.00, 2:0.02, 3:0.05, 4:0.09, 5:0.14,
+6:0.20, 7:0.27, 8:0.35, 9:0.44, 10:0.54
+}
+
+Hard:
+{
+1:0.00, 2:0.01, 3:0.03, 4:0.05, 5:0.08,
+6:0.11, 7:0.15, 8:0.19, 9:0.24, 10:0.30
+}
+
+The implementation should still be derived primarily from FastF1 historical data whenever possible.
+
+
