@@ -52,6 +52,9 @@ class F1TrackDataLoader:
             "starting_grid":
                 starting_grid,
 
+            "starting_compounds":
+                self._get_starting_compounds(laps),
+
             "safety_car":
                 self._get_safety_car_flags(session),
 
@@ -78,6 +81,30 @@ class F1TrackDataLoader:
         }
 
     # --------------------------------------------------
+    # STARTING COMPOUNDS
+    # --------------------------------------------------
+
+    def _get_starting_compounds(self, laps):
+        """
+        Returns {driver_abbrev: compound_id} — the tyre compound each driver
+        started the race on (lap 1). Used so the agent can use its chosen
+        driver's real starting tyre rather than always defaulting to Medium.
+        Falls back gracefully if compound data is missing for a driver.
+        """
+        lap1 = laps[
+            (laps["LapNumber"] == 1) & laps["Compound"].notna()
+        ][["Driver", "Compound"]]
+
+        result = {}
+        for _, row in lap1.iterrows():
+            driver   = row["Driver"]
+            compound = str(row["Compound"]).upper().strip()
+            cid = self.COMPOUND_MAP.get(compound, None)
+            if cid is not None and driver not in result:
+                result[driver] = cid
+        return result
+
+    # --------------------------------------------------
     # STARTING GRID
     # --------------------------------------------------
 
@@ -92,18 +119,27 @@ class F1TrackDataLoader:
     # --------------------------------------------------
 
     def _get_safety_car_flags(self, session):
-
+        """
+        Returns a per-lap list of safety car status:
+          0 = Green flag (normal racing)
+          1 = Virtual Safety Car  (TrackStatus '6') — ~18% slower
+          2 = Full Safety Car     (TrackStatus '4') — ~35% slower
+        Full SC takes priority when both appear in the same lap's data.
+        """
         max_laps = int(session.laps["LapNumber"].max())
 
-        sc_flags = [False] * (max_laps + 1)
+        sc_flags = [0] * (max_laps + 1)
 
         for lap_no, group in session.laps.groupby("LapNumber"):
             statuses = group["TrackStatus"].unique()
-            # '4' is Safety Car, '6' is Virtual Safety Car
-            if any('4' in str(s) or '6' in str(s) for s in statuses):
-                lap = int(lap_no)
-                if lap <= max_laps:
-                    sc_flags[lap] = True
+            lap = int(lap_no)
+            if lap <= max_laps:
+                has_sc  = any('4' in str(s) for s in statuses)
+                has_vsc = any('6' in str(s) for s in statuses)
+                if has_sc:
+                    sc_flags[lap] = 2   # Full SC takes priority
+                elif has_vsc:
+                    sc_flags[lap] = 1   # VSC only
 
         return sc_flags
 
@@ -400,21 +436,25 @@ class F1TrackDataLoader:
                 (comp_laps["TyreLife"] <= 3)
             ]
             
-            times = fresh_no_disturb["LapTime"].dt.total_seconds().values
-            
+            times = np.sort(fresh_no_disturb["LapTime"].dt.total_seconds().values)
+
             if len(times) > 0:
-                base_times[compound_id] = float(np.mean(times))
+                # Use fastest 20% of fresh-tyre laps to capture front-runner pace.
+                # Mean of all drivers would be inflated by midfield/backmarker times.
+                k = max(1, int(len(times) * 0.20))
+                base_times[compound_id] = float(np.mean(times[:k]))
                 continue
                 
-            # Fallback 1: Relax TyreLife to <= 5
+            # Fallback 1: Relax TyreLife to <= 5 (apply same fastest-20% pattern)
             fresh_no_disturb_5 = comp_laps[
-                (comp_laps["TrackStatus"] == "1") & 
-                (comp_laps["IsAccurate"] == True) & 
+                (comp_laps["TrackStatus"] == "1") &
+                (comp_laps["IsAccurate"] == True) &
                 (comp_laps["TyreLife"] <= 5)
             ]
-            times = fresh_no_disturb_5["LapTime"].dt.total_seconds().values
+            times = np.sort(fresh_no_disturb_5["LapTime"].dt.total_seconds().values)
             if len(times) > 0:
-                base_times[compound_id] = float(np.mean(times))
+                k = max(1, int(len(times) * 0.20))
+                base_times[compound_id] = float(np.mean(times[:k]))
                 continue
                 
             # Fallback 2: Any accurate lap of that compound with TrackStatus == '1'

@@ -10,8 +10,9 @@ class RaceBackend:
         self.fastest_lap = float("inf")
 
         self.base_track_time = data["base_time"]
-       
-        
+        # Stored to update field-fastest lap from historical drivers each step
+        self.lap_times_dict = data["lap_times"]
+
         self.tyre_model = TyreModel(data)
         self.traffic_model = TrafficModel()
         self.pit_model  = PitModel(data)
@@ -21,18 +22,18 @@ class RaceBackend:
         current_lap: int,
         tyre_compound: int,
         tyre_age: int,
-        total_laps: int,
         pitted: bool,
         gap_ahead: float,
-        safety_car: bool,
+        safety_car: int = 0,   # 0=green, 1=VSC, 2=full SC
         track_wetness: int = 0,
         noise: float = 0.0,
     ) -> tuple[float, float]:
         
         base_time = self.base_track_time[tyre_compound]
-      
 
-        fuel_time_penalty = 0.035 * 100 * (1 - (current_lap / total_laps))
+        # Fuel penalty removed: historical drivers' replayed lap times already embed
+        # fuel-load effects from real race data. Adding a penalty only to the agent
+        # creates an asymmetry that disadvantages it on early laps.
 
         tyre_degradation_penalty = self.tyre_model.degradation(
             tyre_compound,
@@ -67,25 +68,34 @@ class RaceBackend:
 
 
 
-        traffic_loss = self.traffic_model.get_traffic_loss(
-            gap_ahead,
-            current_lap
-        )
+        traffic_loss = self.traffic_model.get_traffic_loss(gap_ahead)
 
         lap_time = (
             base_time
             + tyre_degradation_penalty
-            + fuel_time_penalty
             + pit_loss
             + traffic_loss
             + weather_penalty
             + noise
         )
 
-        if safety_car:
+        if safety_car == 2:    # Full Safety Car: ~35% slower (pitlane speed limiter pace)
             lap_time *= 1.35
+        elif safety_car == 1:  # Virtual Safety Car: ~18% slower (no overtaking, slow zones)
+            lap_time *= 1.18
 
-        self.fastest_lap = min(self.fastest_lap, lap_time)
+        # Update field-fastest lap: scan all historical drivers for this lap
+        # (their times are already in lap_times_dict before agent time is injected),
+        # then also consider the agent's own clean lap.
+        # Filter: ignore times <= 60s (lap-0 zeros / corrupted rows) and pit laps > 200s.
+        hist_times = self.lap_times_dict.get(current_lap, {})
+        for t in hist_times.values():
+            if 60.0 < t < 200.0:
+                self.fastest_lap = min(self.fastest_lap, t)
+        if not pitted:
+            # Only update field-fastest from agent on non-pit laps
+            self.fastest_lap = min(self.fastest_lap, lap_time)
+
         lap_delta = lap_time - self.fastest_lap
 
         return lap_time, lap_delta
