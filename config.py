@@ -1,16 +1,27 @@
-STATE_SIZE = 4
-ACTION_SIZE = 2
+from dataclasses import dataclass
 
-GAMMA = 0.99
-LEARNING_RATE = 1e-3
-REPLAY_BUFFER_SIZE = 50000
-BATCH_SIZE = 64
+@dataclass
+class DQNConfig:
+    state_size: int = 11
+    action_size: int = 4
 
-EPSILON_START = 1.0
-EPSILON_END = 0.05
-EPSILON_DECAY = 0.995
+    gamma: float = 0.99
+    learning_rate: float = 1e-4
 
-TARGET_UPDATE_FREQ = 10
-NUM_EPISODES = 500
+    replay_buffer_size: int = 100_000
+    batch_size: int = 64
 
-MODEL_PATH = "dqn_cartpole.pth"
+    epsilon_start: float = 1.0
+    epsilon_end: float = 0.05
+    epsilon_decay: float = 0.995
+
+    target_update_frequency: int = 10
+
+    num_episodes: int = 1000
+    max_steps_per_episode: int = 100
+
+    hidden_size: int = 128
+
+    model_path: str = "checkpoints/f1_dqn_agent.pth"
+
+    seed: int = 42
