@@ -171,6 +171,7 @@ class F1StrategyEnv(gym.Env):
     
     def step (self, action):
         pitted = False
+        previous_tyre_age = self.state.tyre_age
 
         if action != 0:
             pitted = True
@@ -228,6 +229,10 @@ class F1StrategyEnv(gym.Env):
             pitted=pitted,
             pit_loss=pit_loss
         )
+        if pitted:
+            reward -= 5.0
+            if previous_tyre_age <= 5:
+                reward -= 20.0
 
         # Enforce standard F1 rule: must use at least 2 distinct DRY compounds.
         # Checked using dry-only set to match the compounds_rule_met observation signal.
@@ -273,23 +278,30 @@ Gap Leader: {self.state.gap_leader:.3f}
 
 
 
-if __name__ == "__main__":
-    env = F1StrategyEnv()
+env = F1StrategyEnv()
 
-    obs, info = env.reset()
+obs, info = env.reset()
 
-    done = False
-    total_reward = 0
+done = False
+total_reward=0
 
-    while not done:
-        env.render()
-
-        action = 0
-
-        obs, reward, terminated, truncated, info = env.step(action)
-        done = terminated or truncated
-
-        total_reward += reward
-        print("Total Reward:", total_reward)
-
+while not  done:
     env.render()
+
+    action =  0 #env.action_space.sample()
+
+    obs, reward, done, _, _ = env.step(action)
+    total_reward += reward
+    print("Total Reward:" , total_reward)
+
+env.render()
+
+
+
+
+
+
+
+        
+
+    
