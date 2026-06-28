@@ -6,7 +6,7 @@ The long-term objective of this project is to compare classical reinforcement le
 
 ---
 
-## Project Overview
+## Project Overview 
 
 Formula 1 race strategy involves making sequential decisions across multiple laps. Important decisions include when to pit, which tyre compound to choose, how tyre degradation affects pace, how traffic impacts lap times, and how safety car situations can influence strategy.
 
@@ -144,7 +144,7 @@ This helps ensure that the data layer works correctly and that race data can flo
 
 ---
 
-## Repository Structure
+## Repository Structure (Current)
 
 ```text
 project-root/
