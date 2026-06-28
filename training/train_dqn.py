@@ -23,7 +23,7 @@ def set_global_seed(seed: int) -> None:
 def train_dqn(
     total_episodes: int = 1500,
     seed: int = 42,
-    checkpoint_dir: str = "checkpoints_v1",
+    checkpoint_dir: str = "checkpoints/dqn/checkpoints_v1",
 ):
     """
     Main DQN training loop for F1StrategyEnv.
@@ -157,5 +157,5 @@ if __name__ == "__main__":
     train_dqn(
         total_episodes=1500,
         seed=42,
-        checkpoint_dir="checkpoints_v1",
+        checkpoint_dir="checkpoints/dqn/checkpoints_v1",
     )
