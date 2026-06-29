@@ -14,14 +14,12 @@ This project converts F1 race data into a simulation-ready format and trains an 
 
 The project is currently divided into the following major parts:
 
-1. Data Layer
-2. Environment Layer
-3. DQN Agent Layer
-4. Training Pipeline
-5. Evaluation Pipeline
-6. Checkpoint Management
-7. Reports and Documentation
-8. Testing
+1. Environment
+2. DQN Agent
+3. Training Pipeline
+4. Evaluation Pipeline
+5. Checkpoint Management
+6. Reports and Documentation
 
 ---
 
@@ -29,31 +27,14 @@ The project is currently divided into the following major parts:
 
 The following work has been completed so far:
 
-### 1. Data Layer
+### 1. Environment
 
-The data layer has been designed to collect, process, validate, and prepare F1 race data for reinforcement learning.
-
-It includes:
-
-- Data models for representing races and laps
-- Data sources for loading race information
-- Processors for preparing derived race features
-- Validators for checking the correctness of race data
-- State builder logic for converting race information into RL-compatible state vectors
-- Cache support for storing processed race data
-- Configuration file for shared constants and project settings
-
-This layer acts as the foundation of the complete project because the environment and RL agent depend on clean and structured race data.
-
----
-
-### 2. Environment Layer
-
-The environment layer represents the Formula 1 race simulation system.
+The environment represents the Formula 1 race simulation system.
 
 It includes:
 
 - A custom F1 environment
+- Real life historical race data to simulate the environment
 - Race backend logic
 - Race session management
 - Race state representation
@@ -62,13 +43,13 @@ It includes:
 - Tyre degradation modeling
 - Traffic modeling
 
-This layer is responsible for simulating how a race progresses lap by lap and how the agent's decisions affect the final race outcome.
+This layer is responsible for simulating how a race progresses based on real life historical race data, lap by lap and how the agent's decisions affect the final race outcome.
 
 ---
 
-### 3. DQN Agent Layer
+### 2. DQN Agent
 
-The DQN agent layer contains the reinforcement learning logic.
+The DQN agent contains the reinforcement learning logic.
 
 It includes:
 
@@ -81,7 +62,7 @@ The DQN agent learns from interaction with the F1 environment. It stores experie
 
 ---
 
-### 4. Training Pipeline
+### 3. Training Pipeline
 
 The training pipeline contains the main training script for the DQN agent.
 
@@ -97,7 +78,7 @@ The goal of training is to allow the agent to learn better race strategies over 
 
 ---
 
-### 5. Evaluation Pipeline
+### 4. Evaluation Pipeline
 
 The evaluation folder contains scripts for testing trained DQN models and comparing them with baseline strategies.
 
@@ -110,7 +91,7 @@ This helps measure whether the trained agent is actually learning useful race st
 
 ---
 
-### 6. Checkpoint System
+### 5. Checkpoint System
 
 The project stores trained DQN model checkpoints in the `checkpoints/` directory.
 
@@ -124,23 +105,13 @@ This allows training to be resumed, evaluated, and compared without retraining f
 
 ---
 
-### 7. Reports
+### 6. Reports
 
 The `reports/` folder currently contains the mid-evaluation report:
 
 - `mid_eval_report_qc_3.pdf`
 
 This report documents the progress made so far in the project.
-
----
-
-### 8. Tests
-
-The project includes a test file for checking the data layer pipeline:
-
-- `test_data_layer_pipeline.py`
-
-This helps ensure that the data layer works correctly and that race data can flow through the pipeline without breaking.
 
 ---
 
@@ -163,20 +134,12 @@ project-root/
 │           ├── final.pt
 │           └── latest.pt
 │
-├── data/
-│   ├── cache/
-│   ├── exporters/
-│   ├── models/
-│   ├── processors/
-│   ├── racerepository/
-│   ├── sources/
-│   ├── statebuilder/
-│   ├── validators/
-│   ├── __init__.py
-│   └── config.py
-│
 ├── env/
 │   ├── data/
+│   │   ├── my_cache/
+│   │   ├── processed_cache/
+│   │   ├── data_for_env.py
+│   │   └── my_data.py
 │   ├── f1_env.py
 │   ├── pit_model.py
 │   ├── race_backend.py
@@ -194,12 +157,8 @@ project-root/
 ├── reports/
 │   └── mid_eval_report_qc_3.pdf
 │
-├── tests/
-│   └── test_data_layer_pipeline.py
-│
 ├── training/
 │   └── train_dqn.py
 │
 ├── .gitignore
-├── README.md
-└── pytest.ini
+└── README.md
