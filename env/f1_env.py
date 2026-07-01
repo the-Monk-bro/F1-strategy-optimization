@@ -21,7 +21,7 @@ class F1StrategyEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=0,
             high=1,
-            shape=(15,),  # removed redundant remaining_laps; +track_wetness, +compounds_rule_met
+            shape=(15,), 
             dtype=np.float32
         )
 
@@ -34,10 +34,10 @@ class F1StrategyEnv(gym.Env):
             self.year  = options.get("year")
             self.name  = options.get("driver", None)  # allow explicit override
         else:
-            # Fix 4: use self.np_random so reset(seed=N) is fully reproducible
+          
             idx = int(self.np_random.integers(0, len(self.available_races)))
             self.track, self.year = self.available_races[idx]
-            self.name = None  # will be resolved below after data is loaded
+            self.name = None  
 
         self.env_data = Env_data(self.track, self.year)
         self.race_backend = RaceBackend(self.env_data.data)
@@ -49,12 +49,7 @@ class F1StrategyEnv(gym.Env):
         self.safety_car_times = self.env_data.data["safety_car"]
         self.track_wetness  = self.env_data.data["track_wetness"]
 
-        # Fix 6a: Select driver — filter to finishers (≥ 70% of laps completed).
-        # Rationale: a driver who retired on lap 10 has almost no historical lap data;
-        # the agent would be simulated in a near-data-free context from lap 11 onward.
-        # Drivers who completed ≥ 70% of laps have rich historical data AND represent
-        # realistic race scenarios. The agent still runs ALL laps via the physics model
-        # regardless of what the real driver actually did after their retirement.
+    
         if self.name is None:
             lap_times_data  = self.env_data.data["lap_times"]
             starting_grid   = self.env_data.data["starting_grid"]
@@ -124,13 +119,7 @@ class F1StrategyEnv(gym.Env):
         tyre = [0, 0, 0, 0, 0]
         tyre[self.state.tyre_compound] = 1
 
-        # Fix 5: Track-relative tyre wear derived from the actual degradation curve
-        # for this specific circuit (loaded from FastF1 data).
-        # Normalise current deg penalty against the deg penalty at half-race distance:
-        #   wear = 0  →  fresh tyres  (zero degradation)
-        #   wear = 1  →  as degraded as the tyre would be at max_laps/2
-        # This is circuit-specific: Monaco's lower deg curves give lower wear values
-        # at the same age vs Silverstone's higher-energy curves — physically correct.
+       
         compound    = self.state.tyre_compound
         current_deg = self.race_backend.tyre_model.degradation(compound, self.state.tyre_age)
         curve       = self.race_backend.tyre_model.degradation_curves[compound]

@@ -84,16 +84,13 @@ class RaceBackend:
         elif safety_car == 1:  # Virtual Safety Car: ~18% slower (no overtaking, slow zones)
             lap_time *= 1.18
 
-        # Update field-fastest lap: scan all historical drivers for this lap
-        # (their times are already in lap_times_dict before agent time is injected),
-        # then also consider the agent's own clean lap.
-        # Filter: ignore times <= 60s (lap-0 zeros / corrupted rows) and pit laps > 200s.
+     
         hist_times = self.lap_times_dict.get(current_lap, {})
         for t in hist_times.values():
             if 60.0 < t < 200.0:
                 self.fastest_lap = min(self.fastest_lap, t)
         if not pitted:
-            # Only update field-fastest from agent on non-pit laps
+        
             self.fastest_lap = min(self.fastest_lap, lap_time)
 
         lap_delta = lap_time - self.fastest_lap

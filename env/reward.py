@@ -8,9 +8,7 @@ class RewardCalculator:
         if pitted:
             gap_delta += pit_loss
 
-        # Per-lap terms are scaled down by 10× so the terminal F1 points reward
-        # (max 25) becomes the dominant long-horizon objective the agent optimises for.
-        # Without scaling, position deltas alone would dwarf the terminal signal.
+      
         reward = (start_pos - end_pos) * 1.0 + gap_delta * 0.1 - lap_delta * 0.1
         return reward
        
