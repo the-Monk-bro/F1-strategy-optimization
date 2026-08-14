@@ -16,6 +16,8 @@ class RaceBackend:
         self.tyre_model = TyreModel(data)
         self.traffic_model = TrafficModel()
         self.pit_model  = PitModel(data)
+        
+        self.driver_deficit = 0.0
 
     def simulated_lap_time(
         self,
@@ -76,6 +78,7 @@ class RaceBackend:
             + pit_loss
             + traffic_loss
             + weather_penalty
+            + self.driver_deficit
             + noise
         )
 

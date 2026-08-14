@@ -63,8 +63,34 @@ class F1StrategyEnv(gym.Env):
             ]
             if not eligible:
                 eligible = starting_grid
-            idx = int(self.np_random.integers(0, len(eligible)))
-            self.name = eligible[idx]
+            
+            # Select the driver who came last among eligible drivers
+            driver_times = {}
+            for d in eligible:
+                total_time = 0
+                for lap in range(1, self.max_laps + 1):
+                    total_time += lap_times_data.get(lap, {}).get(d, 0)
+                driver_times[d] = total_time
+                
+            self.name = max(driver_times, key=driver_times.get)
+
+        # Calculate driver deficit so the agent is simulated with the correct pace
+        dt = []
+        for lap in range(1, self.max_laps + 1):
+            t = self.env_data.data["lap_times"].get(lap, {}).get(self.name)
+            if t is not None and 60.0 < t < 200.0:
+                dt.append(t)
+                
+        if dt:
+            dt = np.sort(dt)
+            k = max(1, int(len(dt) * 0.20))
+            driver_base = np.mean(dt[:k])
+        else:
+            driver_base = 80.0
+            
+        b = self.env_data.data["base_time"]
+        avg_base = np.mean([b.get(0, 80), b.get(1, 80), b.get(2, 80)])
+        self.race_backend.driver_deficit = max(0.0, driver_base - avg_base)
 
         # Starting compound from race data
         starting_compounds  = self.env_data.data.get("starting_compounds", {})
